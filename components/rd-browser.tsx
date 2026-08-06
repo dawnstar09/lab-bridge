@@ -8,7 +8,7 @@ import { auth } from "@/lib/firebase";
 import { loadResearcherProfile, ResearcherProfile } from "@/lib/researcher-profile";
 import { localizeMatchReason, matchProgram } from "@/lib/program-matching";
 import { researchFieldOptions } from "@/lib/profile-options";
-import { useProgramTranslations } from "./use-program-translations";
+import { programStatus, programText, useProgramTranslations } from "./use-program-translations";
 import { StatusPill } from "./status-pill";
 import { useLocale } from "./locale-provider";
 
@@ -38,8 +38,8 @@ export function RdBrowser() {
         {visible.map(({ program, match }) => (
           <article className="program-row" key={program.id}>
             <div className="match-score"><strong>{profile ? match.score : "—"}</strong><span>{profile ? `% ${t("profileMatch")}` : t("profile")}</span></div>
-            <div><StatusPill tone="soft">{researchFieldOptions.find((item) => item.value === program.fieldCodes[0])?.labels[locale] || program.fieldCodes[0]}</StatusPill><h3>{translations[program.id]?.title || program.title}</h3>{locale !== "ko" && translations[program.id] && <small>{program.title}</small>}<p>{translations[program.id]?.agency || program.agency} · {match.reasons.slice(0, 3).map((reason) => localizeMatchReason(reason, locale)).join(" · ")}</p></div>
-            <div className="program-action"><b>{program.status} · {program.deadline}</b><Link href={`/rd/${program.id}`}>{t("details")} →</Link></div>
+            <div><StatusPill tone="soft">{researchFieldOptions.find((item) => item.value === program.fieldCodes[0])?.labels[locale] || program.fieldCodes[0]}</StatusPill><h3>{programText(program.title, translations[program.id]?.title, locale)}</h3><p>{programText(program.agency, translations[program.id]?.agency, locale)} · {match.reasons.slice(0, 3).map((reason) => localizeMatchReason(reason, locale)).join(" · ")}</p></div>
+            <div className="program-action"><b>{programStatus(program.status, locale)} · {program.deadline}</b><Link href={`/rd/${program.id}`}>{t("details")} →</Link></div>
           </article>
         ))}
         {!visible.length && <div className="empty-card">조건에 맞는 사업이 없습니다.</div>}
