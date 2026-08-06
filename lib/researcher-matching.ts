@@ -1,42 +1,281 @@
-import { kaistResearchers } from "@/lib/kaist-researchers";
+import { kaistResearchers, type KaistResearcher } from "@/lib/kaist-researchers";
 import { researchFieldOptions, specialtyOptions } from "@/lib/profile-options";
-import type { ResearcherProfile } from "@/lib/researcher-profile";
 
-const aliases: Record<string, string[]> = {
-  ai:["인공지능","머신러닝","딥러닝","컴퓨터비전","데이터"], semiconductor:["반도체","시스템반도체","패키징","회로"],
-  "computer-science":["컴퓨터","컴퓨팅","데이터","네트워크"], "data-hpc":["데이터","고성능컴퓨팅","HPC","컴퓨팅"],
-  chemistry:["화학","분자","합성","촉매"], "chemical-engineering":["화학공학","생체분자","대사공학","촉매"],
-  biology:["생물과학","바이오","생명공학"], biotechnology:["생명공학","바이오","의생명","헬스케어"],
-  physics:["물리학","광학","분광학","양자"], materials:["재료","재료과학","극한재료","복합재료"], nano:["나노","나노기술","나노포토닉스"],
-  mechanical:["기계공학","열공학","유체","공정"], aerospace:["항공우주","구조","복합재료"], mathematics:["수학","편미분방정식","해석학","수리모델"],
-  "electrical-information":["전기전자","회로","반도체","정보"], energy:["에너지","열공학","지속가능"],
+export type ResearcherProfile = {
+  researchField?: string;
+  specialty?: string;
+  interests?: string;
+  publications?: string | string[];
 };
 
-function tokenize(value: string) {
-  return value.toLowerCase().normalize("NFKC").match(/[가-힣a-z0-9+#.-]{2,}/g) || [];
+export type ResearcherMatch = KaistResearcher & {
+  score: number;
+  matchedKeywords: string[];
+};
+
+const conceptAliases: Record<string, string[]> = {
+  ai: [
+    "ai",
+    "artificial intelligence",
+    "machine learning",
+    "deep learning",
+    "computer vision",
+    "vision",
+    "인공지능",
+    "머신러닝",
+    "기계학습",
+    "딥러닝",
+    "컴퓨터 비전",
+  ],
+  computing: [
+    "computer science",
+    "computing",
+    "data science",
+    "data computing",
+    "software",
+    "컴퓨터",
+    "전산",
+    "컴퓨팅",
+    "데이터 과학",
+    "소프트웨어",
+  ],
+  semiconductor: [
+    "semiconductor",
+    "integrated circuit",
+    "chip",
+    "반도체",
+    "집적회로",
+    "패키징",
+  ],
+  bio: [
+    "biology",
+    "biological",
+    "biotechnology",
+    "bioengineering",
+    "healthcare",
+    "생명과학",
+    "생명공학",
+    "바이오",
+    "헬스케어",
+  ],
+  chemistry: [
+    "chemistry",
+    "chemical",
+    "catalyst",
+    "catalysis",
+    "organic synthesis",
+    "화학",
+    "촉매",
+    "유기 합성",
+  ],
+  materials: [
+    "materials science",
+    "material physics",
+    "advanced materials",
+    "재료",
+    "신소재",
+    "소재",
+  ],
+  physics: [
+    "physics",
+    "photonics",
+    "spectroscopy",
+    "superconductor",
+    "물리",
+    "광학",
+    "분광학",
+    "초전도",
+  ],
+  mathematics: [
+    "mathematics",
+    "mathematical",
+    "partial differential equation",
+    "pde",
+    "수학",
+    "편미분방정식",
+  ],
+  mechanical: [
+    "mechanical engineering",
+    "microfluidics",
+    "acoustics",
+    "기계공학",
+    "미세유체",
+    "마이크로유체",
+    "음향",
+  ],
+  aerospace: [
+    "aerospace",
+    "aeronautics",
+    "항공우주",
+    "항공",
+  ],
+  electrical: [
+    "electrical engineering",
+    "electronics",
+    "전자공학",
+    "전기공학",
+    "전자",
+    "전기",
+  ],
+  energy: [
+    "energy",
+    "battery",
+    "renewable energy",
+    "에너지",
+    "배터리",
+    "이차전지",
+  ],
+};
+
+function normalizeText(value: string) {
+  return value
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[·_/,&()\[\]{}:;]+/g, " ")
+    .replace(/[^\p{L}\p{N}+#.-]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
-function cosine(left: string, right: string) {
-  const a = new Map<string, number>();
-  const b = new Map<string, number>();
-  tokenize(left).forEach((token) => a.set(token, (a.get(token) || 0) + 1));
-  tokenize(right).forEach((token) => b.set(token, (b.get(token) || 0) + 1));
+function textValue(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value.join(" ") : value || "";
+}
+
+function includesAlias(text: string, alias: string) {
+  const normalizedAlias = normalizeText(alias);
+  if (!normalizedAlias) return false;
+  if (/^[a-z0-9+#.-]+$/.test(normalizedAlias)) {
+    return new RegExp(`(^|\\s)${normalizedAlias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|\\s)`, "i").test(text);
+  }
+  return text.includes(normalizedAlias);
+}
+
+function detectedConcepts(value: string) {
+  const text = normalizeText(value);
+  return Object.entries(conceptAliases)
+    .filter(([, aliases]) => aliases.some((alias) => includesAlias(text, alias)))
+    .map(([concept]) => concept);
+}
+
+function addFeature(vector: Map<string, number>, key: string, weight: number) {
+  vector.set(key, (vector.get(key) || 0) + weight);
+}
+
+function featureVector(value: string) {
+  const vector = new Map<string, number>();
+  const words = normalizeText(value).split(" ").filter((word) => word.length >= 2);
+
+  words.forEach((word) => {
+    addFeature(vector, `word:${word}`, 1.5);
+
+    const size = /[가-힣]/.test(word) ? 2 : 3;
+    if (word.length >= size + 1) {
+      for (let index = 0; index <= word.length - size; index += 1) {
+        addFeature(vector, `gram:${word.slice(index, index + size)}`, 0.18);
+      }
+    }
+  });
+
+  detectedConcepts(value).forEach((concept) => addFeature(vector, `concept:${concept}`, 4));
+  return vector;
+}
+
+function cosineSimilarity(left: string, right: string) {
+  const leftVector = featureVector(left);
+  const rightVector = featureVector(right);
+  if (!leftVector.size || !rightVector.size) return 0;
+
   let dot = 0;
-  a.forEach((value, token) => { dot += value * (b.get(token) || 0); });
-  const normA = Math.sqrt([...a.values()].reduce((sum, value) => sum + value * value, 0));
-  const normB = Math.sqrt([...b.values()].reduce((sum, value) => sum + value * value, 0));
-  return normA && normB ? dot / (normA * normB) : 0;
+  let leftMagnitude = 0;
+  let rightMagnitude = 0;
+
+  leftVector.forEach((weight, feature) => {
+    dot += weight * (rightVector.get(feature) || 0);
+    leftMagnitude += weight * weight;
+  });
+  rightVector.forEach((weight) => {
+    rightMagnitude += weight * weight;
+  });
+
+  return dot / (Math.sqrt(leftMagnitude) * Math.sqrt(rightMagnitude));
 }
 
-export function matchKaistResearchers(profile: ResearcherProfile | null) {
-  const specialty = profile?.specialty || "";
-  const specialtyLabel = specialtyOptions.find((item) => item.value === specialty)?.labels.ko || specialty;
-  const fieldLabel = researchFieldOptions.find((item) => item.value === profile?.researchField)?.labels.ko || profile?.researchField || "";
-  const profileText = [fieldLabel, specialtyLabel, ...(aliases[specialty] || []), profile?.interests, ...(profile?.publications || [])].filter(Boolean).join(" ");
-  return kaistResearchers.map((researcher) => {
-    const labText = [researcher.lab, researcher.department, ...researcher.keywords].join(" ");
-    const similarity = cosine(profileText, labText);
-    const matchedKeywords = researcher.keywords.filter((keyword) => tokenize(profileText).some((token) => keyword.toLowerCase().includes(token) || token.includes(keyword.toLowerCase()))).slice(0, 3);
-    return { ...researcher, score: Math.round(similarity * 100), matchedKeywords };
-  }).sort((a, b) => b.score - a.score || a.lab.localeCompare(b.lab, "ko"));
+function localizedOptionText(
+  value: string | undefined,
+  options: Array<{ value: string; labels: Record<string, string>; keywords?: string | string[] }>,
+) {
+  if (!value) return "";
+  const option = options.find((item) => item.value === value);
+  return [value, ...Object.values(option?.labels || {}), textValue(option?.keywords)].join(" ");
+}
+
+function labText(researcher: KaistResearcher) {
+  return [
+    researcher.lab,
+    researcher.labEn,
+    researcher.professor,
+    researcher.professorEn,
+    researcher.department,
+    researcher.departmentEn,
+    ...researcher.keywords,
+  ].join(" ");
+}
+
+function weightedSimilarity(profile: ResearcherProfile, researcher: KaistResearcher) {
+  const candidate = labText(researcher);
+  const sections = [
+    {
+      text: localizedOptionText(profile.specialty, specialtyOptions),
+      weight: 0.5,
+    },
+    {
+      text: localizedOptionText(profile.researchField, researchFieldOptions),
+      weight: 0.2,
+    },
+    {
+      text: [profile.interests, textValue(profile.publications)].filter(Boolean).join(" "),
+      weight: 0.3,
+    },
+  ].filter((section) => section.text.trim());
+
+  const totalWeight = sections.reduce((sum, section) => sum + section.weight, 0);
+  if (!totalWeight) return 0;
+
+  return sections.reduce(
+    (sum, section) => sum + cosineSimilarity(section.text, candidate) * section.weight,
+    0,
+  ) / totalWeight;
+}
+
+function matchedKeywords(profileText: string, researcher: KaistResearcher) {
+  const profileConcepts = new Set(detectedConcepts(profileText));
+  return researcher.keywords
+    .filter((keyword) => {
+      const keywordConcepts = detectedConcepts(keyword);
+      return (
+        cosineSimilarity(profileText, keyword) >= 0.12 ||
+        keywordConcepts.some((concept) => profileConcepts.has(concept))
+      );
+    })
+    .slice(0, 3);
+}
+
+export function matchKaistResearchers(profile: ResearcherProfile | null | undefined): ResearcherMatch[] {
+  const resolvedProfile = profile || {};
+  const profileText = [
+    localizedOptionText(resolvedProfile.researchField, researchFieldOptions),
+    localizedOptionText(resolvedProfile.specialty, specialtyOptions),
+    resolvedProfile.interests,
+    textValue(resolvedProfile.publications),
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return kaistResearchers
+    .map((researcher) => ({
+      ...researcher,
+      score: Math.min(100, Math.round(weightedSimilarity(resolvedProfile, researcher) * 100)),
+      matchedKeywords: matchedKeywords(profileText, researcher),
+    }))
+    .sort((left, right) => right.score - left.score || left.professor.localeCompare(right.professor));
 }
