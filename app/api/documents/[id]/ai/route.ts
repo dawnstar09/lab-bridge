@@ -17,14 +17,26 @@ const apiMessages = {
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!validateDocumentId(id)) return NextResponse.json({ error: "잘못된 문서 ID입니다." }, { status: 400 });
-  const body = await request.json() as { question?: string; mode?: "review" | "question"; locale?: "ko" | "en" | "zh" | "ja" | "vi"; terminologyPreference?: "original_with_explanation" | "translated_with_original" | "original_only" };
+  const body = await request.json() as { question?: string; documentUrl?: string; mode?: "review" | "question"; locale?: "ko" | "en" | "zh" | "ja" | "vi"; terminologyPreference?: "original_with_explanation" | "translated_with_original" | "original_only" };
   const message = apiMessages[body.locale || "ko"];
   const question = body.question?.trim();
   if (!question || question.length > 1000) return NextResponse.json({ error: message.question }, { status: 400 });
 
   try {
-    const paths = await documentPaths(id);
-    const extracted = await mammoth.extractRawText({ buffer: await readFile(paths.file) });
+    let documentBuffer: Buffer;
+    if (body.documentUrl) {
+      const url = new URL(body.documentUrl);
+      if (url.protocol !== "https:" || !url.hostname.endsWith(".public.blob.vercel-storage.com")) {
+        return NextResponse.json({ error: "허용되지 않은 문서 주소입니다." }, { status: 400 });
+      }
+      const documentResponse = await fetch(url, { cache: "no-store" });
+      if (!documentResponse.ok) throw new Error("DOCUMENT_DOWNLOAD_FAILED");
+      documentBuffer = Buffer.from(await documentResponse.arrayBuffer());
+    } else {
+      const paths = await documentPaths(id);
+      documentBuffer = await readFile(paths.file);
+    }
+    const extracted = await mammoth.extractRawText({ buffer: documentBuffer });
     const documentText = extracted.value.replace(/\n{3,}/g, "\n\n").trim().slice(0, 80000);
     if (!documentText) return NextResponse.json({ error: message.empty }, { status: 422 });
     const result = await reviewDocumentWithOpenAI({ documentText, question, locale: body.locale, terminologyPreference: body.terminologyPreference });

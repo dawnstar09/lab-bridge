@@ -2,14 +2,16 @@
 
 import Script from "next/script";
 import { ChangeEvent, useEffect, useRef, useState } from "react";
+import { upload } from "@vercel/blob/client";
 import { Locale, useLocale } from "./locale-provider";
 
-type UploadedDocument = { id: string; name: string };
+type UploadedDocument = { id: string; name: string; url?: string; pathname?: string; downloadUrl?: string };
 type AiResult = { answer: string; citations: Array<{ quote: string; feedback: string }>; locale?: Locale };
 type SavedFeedback = { id: string; quote: string; feedback: string; savedAt: string; locale?: Locale };
 type RecentDocument = UploadedDocument & { updatedAt: string; result?: AiResult; savedFeedback?: SavedFeedback[] };
 
 const recentDocumentsKey = "labbridge-recent-documents";
+const onlyofficeUrl = (process.env.NEXT_PUBLIC_ONLYOFFICE_URL || "http://localhost:8080").replace(/\/$/, "");
 
 const proposalUi: Record<Locale, Record<string, string>> = {
   ko: { uploadIntro:"DOCX 파일을 올리면 OpenAI가 문서 내용을 먼저 분석합니다.",reopened:"저장된 문서를 다시 열었습니다. 필요한 내용을 질문해 주세요.",editorReconnect:"문서 편집기를 다시 연결하고 있습니다. 잠시 후 문서를 다시 선택해 주세요.",analysisFailed:"AI 분석에 실패했습니다.",loading:"문서를 안전하게 불러오는 중입니다.",uploadFailed:"파일을 불러오지 못했습니다.",editorCommandFailed:"DOCX 편집기 명령을 전달하지 못했습니다.",editorServerFailed:"문서 편집 서버에 연결하지 못했습니다. Docker Desktop을 확인해 주세요.",format:"DOCX 권장 · HWP/HWPX는 DOCX로 자동 변환됩니다.",current:"현재 문서",none:"선택된 파일 없음",autosave:"자동 저장 및 댓글 사용 가능",docxOnly:"DOCX만 지원",download:"현재 파일 다운로드",recent:"최근 작업 문서",example:"예시 양식",template:"연구개발계획서 본문1 작성서식",templateMeta:"국가 R&D 표준 양식 · 다운로드",webEditor:"실제 웹 편집기",features:"페이지 · 표 · 이미지 · 댓글",conversionNote:"한글 파일은 DOCX로 변환한 뒤 편집되며 복잡한 표·글상자는 일부 달라질 수 있습니다.",emptyTitle:"연구계획서 양식을 불러오세요",emptyText:"파일을 선택하면 Word 형식의 웹 편집기와 OpenAI 문서 분석이 함께 시작됩니다.",openDocx:"DOCX 파일 열기",analyzing:"문서 분석 중…",openaiAnswer:"OpenAI 답변",issueCards:"문서 문제 카드 · 문장을 누르면 DOCX에서 표시됩니다",issue:"문제",collapse:"접기",viewFeedback:"피드백 보기",aiComment:"AI 댓글",saved:"저장됨",saveFeedback:"피드백 저장",addComment:"DOCX 댓글로 추가",savedFeedback:"저장한 피드백",clarifyGoal:"목표 구체화",adminStyle:"행정 문체 점검",selectionPlaceholder:"문서에서 문장을 복사해 붙여넣으세요.",questionPlaceholder:"문서에 관해 질문하세요." },
@@ -71,7 +73,7 @@ export function ProposalEditor() {
       const valid = saved.filter((item) => item.id && item.name && item.updatedAt).slice(0, 8);
       setRecentDocuments(valid);
       if (valid[0]) {
-        setDocument({ id: valid[0].id, name: valid[0].name });
+        setDocument(valid[0]);
         if (valid[0].result) setResult(valid[0].result);
         setSavedFeedback((valid[0].savedFeedback || []).filter((item) => (item.locale || "ko") === locale));
       }
@@ -95,7 +97,7 @@ export function ProposalEditor() {
   }
 
   function openRecent(item: RecentDocument) {
-    setDocument({ id: item.id, name: item.name });
+    setDocument(item);
     setResult(item.result?.locale === locale ? item.result : { answer: ui.reopened, citations: [], locale });
     setActiveCitations([]);
     setSavedFeedback((item.savedFeedback || []).filter((feedback) => (feedback.locale || "ko") === locale));
@@ -115,8 +117,24 @@ export function ProposalEditor() {
 
     editorStartTimerRef.current = setTimeout(() => {
       if (cancelled || !window.DocsAPI || !window.document.getElementById("onlyoffice-editor")) return;
+      const isLocalEditor = onlyofficeUrl.includes("localhost:8080");
       const port = window.location.port || "80";
-      const containerHost = `http://host.docker.internal:${port}`;
+      const appHost = isLocalEditor ? `http://host.docker.internal:${port}` : window.location.origin;
+      const documentUrl = document.url || `${appHost}/api/documents/${document.id}`;
+      const callbackUrl = `${appHost}/api/documents/${document.id}/callback${document.pathname ? `?pathname=${encodeURIComponent(document.pathname)}` : ""}`;
+      const editorConfig: Record<string, unknown> = {
+        callbackUrl,
+        lang: locale,
+        mode: "edit",
+        user: { id: "labbridge-user", name: "Lab-BridGE 연구자" },
+        customization: { autosave: true, compactHeader: false, forcesave: true },
+      };
+      if (isLocalEditor) {
+        editorConfig.plugins = {
+          autostart: ["asc.{A6843506-4E9A-4B1C-8D53-4E4E44C315E2}"],
+          pluginsData: [`${onlyofficeUrl}/sdkjs-plugins/labbridge-bridge/config.json?v=1.0.1`],
+        };
+      }
 
       editorRef.current = new window.DocsAPI.DocEditor("onlyoffice-editor", {
         documentType: "word",
@@ -127,20 +145,10 @@ export function ProposalEditor() {
           fileType: "docx",
           key: document.id,
           title: document.name,
-          url: `${containerHost}/api/documents/${document.id}`,
+          url: documentUrl,
           permissions: { comment: true, download: true, edit: true, print: true },
         },
-        editorConfig: {
-          callbackUrl: `${containerHost}/api/documents/${document.id}/callback`,
-          lang: "ko",
-          mode: "edit",
-          user: { id: "labbridge-user", name: "Lab-BridGE 연구자" },
-          customization: { autosave: true, compactHeader: false, forcesave: true },
-          plugins: {
-            autostart: ["asc.{A6843506-4E9A-4B1C-8D53-4E4E44C315E2}"],
-            pluginsData: ["http://localhost:8080/sdkjs-plugins/labbridge-bridge/config.json?v=1.0.1"],
-          },
-        },
+        editorConfig,
         events: {
           onError: () => setResult({ answer: ui.editorReconnect, citations: [], locale }),
         },
@@ -158,7 +166,7 @@ export function ProposalEditor() {
       }
       editorRef.current = null;
     };
-  }, [document, scriptReady]);
+  }, [document, scriptReady, locale]);
 
   async function askOpenAI(target: UploadedDocument, prompt: string, mode: "review" | "question" = "question") {
     setAiLoading(true);
@@ -166,7 +174,7 @@ export function ProposalEditor() {
       const response = await fetch(`/api/documents/${target.id}/ai`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: prompt, mode, locale, terminologyPreference }),
+        body: JSON.stringify({ question: prompt, documentUrl: target.url, mode, locale, terminologyPreference }),
       });
       const data = (await response.json()) as AiResult & { error?: string };
       if (!response.ok) throw new Error(data.error || "AI 분석에 실패했습니다.");
@@ -188,12 +196,28 @@ export function ProposalEditor() {
     setResult({ answer: ui.loading, citations: [], locale });
 
     try {
-      const body = new FormData();
-      body.append("file", file);
-      const response = await fetch("/api/documents/upload", { method: "POST", body });
-      const data = (await response.json()) as UploadedDocument & { error?: string };
-      if (!response.ok) throw new Error(data.error || "파일 업로드에 실패했습니다.");
-      const uploaded = { id: data.id, name: data.name };
+      const extension = file.name.split(".").pop()?.toLowerCase();
+      if (file.size > 20 * 1024 * 1024) throw new Error("파일 크기는 20MB 이하여야 합니다.");
+      let uploaded: UploadedDocument;
+      if (window.location.hostname !== "localhost" || process.env.NEXT_PUBLIC_USE_BLOB === "true") {
+        if (extension !== "docx") throw new Error("배포 환경에서는 DOCX 파일을 사용해 주세요. HWP/HWPX 변환에는 외부 문서 서버가 필요합니다.");
+        const id = crypto.randomUUID();
+        const safeName = file.name.replace(/[\r\n"\\/]/g, "_").slice(0, 180);
+        const blob = await upload(`documents/${id}/${safeName}`, file, {
+          access: "public",
+          handleUploadUrl: "/api/documents/blob-upload",
+          contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          multipart: true,
+        });
+        uploaded = { id, name: safeName, url: blob.url, pathname: blob.pathname, downloadUrl: blob.downloadUrl };
+      } else {
+        const body = new FormData();
+        body.append("file", file);
+        const response = await fetch("/api/documents/upload", { method: "POST", body });
+        const data = (await response.json()) as UploadedDocument & { error?: string };
+        if (!response.ok) throw new Error(data.error || "파일 업로드에 실패했습니다.");
+        uploaded = { id: data.id, name: data.name };
+      }
       setDocument(uploaded);
       setSavedFeedback([]);
       saveRecent(uploaded);
@@ -253,7 +277,7 @@ export function ProposalEditor() {
 
   return (
     <section className="proposal-workspace onlyoffice-workspace">
-      <Script src="http://localhost:8080/web-apps/apps/api/documents/api.js" strategy="afterInteractive" onLoad={() => setScriptReady(true)} onReady={() => setScriptReady(true)} onError={() => setResult({ answer: ui.editorServerFailed, citations: [], locale })} />
+      <Script src={`${onlyofficeUrl}/web-apps/apps/api/documents/api.js`} strategy="afterInteractive" onLoad={() => setScriptReady(true)} onReady={() => setScriptReady(true)} onError={() => setResult({ answer: ui.editorServerFailed, citations: [], locale })} />
 
       <aside className="document-nav">
         <span className="section-label">DOCUMENT</span>
@@ -263,7 +287,7 @@ export function ProposalEditor() {
         <button className="upload-trigger" type="button" onClick={() => fileInputRef.current?.click()} disabled={loading}><span>+</span>{loading ? "…" : t("chooseFile")}</button>
         <small className="format-recommendation">{ui.format}</small>
         <div className="current-file"><span>{ui.current}</span><strong>{document?.name || ui.none}</strong><small>{document ? ui.autosave : ui.docxOnly}</small></div>
-        {document && <a className="document-download" href={`/api/documents/${document.id}?download=1`}>{ui.download}</a>}
+        {document && <a className="document-download" href={document.downloadUrl || `/api/documents/${document.id}?download=1`}>{ui.download}</a>}
         {recentDocuments.length > 0 && <div className="recent-documents"><b>{ui.recent}</b>{recentDocuments.map((item) => <button className={document?.id === item.id ? "recent-document active" : "recent-document"} type="button" key={item.id} onClick={() => openRecent(item)}><span>DOCX</span><strong>{item.name}</strong><small>{new Intl.DateTimeFormat(locale, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(item.updatedAt))}</small></button>)}</div>}
         <div className="example-template"><b>{ui.example}</b><a href="/templates/research-development-plan-template.hwp" download><span>HWP</span><strong>{ui.template}</strong><small>{ui.templateMeta}</small></a></div>
         <div className="format-notice"><b>{ui.webEditor}</b><p>{ui.features}</p><small>{ui.conversionNote}</small></div>
