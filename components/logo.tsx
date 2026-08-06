@@ -7,8 +7,7 @@ export function Logo() {
   const { t } = useLocale();
   return (
     <Link className="logo" href="/" aria-label={`LAB-BRIDGE ${t("home")}`}>
-      <span className="logo-mark" aria-hidden="true"><i /><i /><i /></span>
-      <span>LAB-BRIDGE</span>
+      <img className="logo-image" src="/labbridge-logo.svg" alt="" width="179" height="40" />
     </Link>
   );
 }

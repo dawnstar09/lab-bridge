@@ -8,6 +8,7 @@ a { color:inherit; text-decoration:none; }
 button,input { font:inherit; }
 .header { height:82px; display:flex; align-items:center; justify-content:space-between; padding:0 4.5vw; border-bottom:1px solid var(--line); position:relative; z-index:10; }
 .logo { display:flex; align-items:center; gap:11px; font-family:"Manrope",sans-serif; font-weight:700; letter-spacing:-.5px; }
+.logo-image{display:block;width:179px;height:40px;object-fit:contain;object-position:left center}
 .logo-mark { position:relative; width:27px; height:27px; display:inline-block; transform:rotate(-8deg); }
 .logo-mark i { position:absolute; background:var(--ink); border-radius:1px; }
 .logo-mark i:nth-child(1){width:6px;height:24px;left:2px;top:1px}.logo-mark i:nth-child(2){width:6px;height:19px;left:10px;top:6px}.logo-mark i:nth-child(3){width:6px;height:13px;left:18px;top:12px}
