@@ -9,7 +9,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     baseUrl: `${origin}/api/documents/${id}/`,
     name: "Lab-BridGE Editor Bridge",
     guid: "asc.{A6843506-4E9A-4B1C-8D53-4E4E44C315E2}",
-    version: "1.1.2",
+    version: "1.1.3",
     variations: [{
       description: "Lab-BridGE AI 피드백을 문서에 연결합니다.",
       url: "plugin",
