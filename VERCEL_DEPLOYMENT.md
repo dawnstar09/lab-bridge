@@ -12,9 +12,12 @@ Vercel 환경 변수에 다음 값을 등록합니다.
 
 ```text
 NEXT_PUBLIC_ONLYOFFICE_URL=https://office.example.com
+ONLYOFFICE_JWT_HEADER=AuthorizationJwt
+ONLYOFFICE_JWT_SECRET=Docs Cloud Admin에 표시된 DOCS JWT SECRET
 ```
 
 주소 끝에는 `/`를 붙이지 않습니다. `https://office.example.com/web-apps/apps/api/documents/api.js`가 외부에서 열려야 합니다.
+JWT 값은 ONLYOFFICE Docs Cloud Admin의 `DOCS JWT HEADER`, `DOCS JWT SECRET` 값을 그대로 사용합니다. Secret은 브라우저에 노출되지 않고 서버에서 편집기 설정 서명과 저장 콜백 검증에만 사용됩니다.
 
 ## 3. 재배포
 

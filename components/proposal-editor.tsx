@@ -115,7 +115,7 @@ export function ProposalEditor() {
     }
     editorRef.current = null;
 
-    editorStartTimerRef.current = setTimeout(() => {
+    editorStartTimerRef.current = setTimeout(async () => {
       if (cancelled || !window.DocsAPI || !window.document.getElementById("onlyoffice-editor")) return;
       const isLocalEditor = onlyofficeUrl.includes("localhost:8080");
       const port = window.location.port || "80";
@@ -136,7 +136,7 @@ export function ProposalEditor() {
         };
       }
 
-      editorRef.current = new window.DocsAPI.DocEditor("onlyoffice-editor", {
+      let config: Record<string, unknown> = {
         documentType: "word",
         type: "desktop",
         width: "100%",
@@ -149,10 +149,25 @@ export function ProposalEditor() {
           permissions: { comment: true, download: true, edit: true, print: true },
         },
         editorConfig,
-        events: {
-          onError: () => setResult({ answer: ui.editorReconnect, citations: [], locale }),
-        },
-      });
+      };
+      if (!isLocalEditor && document.url) {
+        try {
+          const response = await fetch(`/api/documents/${document.id}/config`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: document.name, url: document.url, pathname: document.pathname, locale }),
+          });
+          const signedConfig = await response.json() as Record<string, unknown> & { error?: string };
+          if (!response.ok) throw new Error(signedConfig.error || "ONLYOFFICE 설정을 만들지 못했습니다.");
+          config = signedConfig;
+        } catch (error) {
+          setResult({ answer: error instanceof Error ? error.message : ui.editorReconnect, citations: [], locale });
+          return;
+        }
+      }
+      if (cancelled || !window.DocsAPI || !window.document.getElementById("onlyoffice-editor")) return;
+      config.events = { onError: () => setResult({ answer: ui.editorReconnect, citations: [], locale }) };
+      editorRef.current = new window.DocsAPI.DocEditor("onlyoffice-editor", config);
     }, 350);
 
     return () => {

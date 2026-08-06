@@ -2,12 +2,20 @@ import { writeFile } from "node:fs/promises";
 import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import { documentPaths, validateDocumentId } from "@/lib/document-storage";
+import { verifyOnlyOfficeToken } from "@/lib/onlyoffice-jwt";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!validateDocumentId(id)) return NextResponse.json({ error: 1 });
+
+  const secret = process.env.ONLYOFFICE_JWT_SECRET;
+  if (secret) {
+    const headerName = process.env.ONLYOFFICE_JWT_HEADER || "Authorization";
+    const token = request.headers.get(headerName);
+    if (!token || !verifyOnlyOfficeToken(token, secret)) return NextResponse.json({ error: 1 }, { status: 401 });
+  }
 
   const body = await request.json() as { status?: number; url?: string };
   if ((body.status === 2 || body.status === 6) && body.url) {
