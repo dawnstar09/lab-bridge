@@ -45,6 +45,22 @@ const accessibilityMessages: Record<Locale, Record<string, string>> = {
   vi: { navigation:"Điều hướng chính",home:"Trang chủ" },
 };
 
+const completionMessages: Record<Locale, Record<string, string>> = {
+  ko:{publications:"논문 및 연구성과",publicationsPlaceholder:"논문 제목을 한 줄에 하나씩 입력하세요. DOI 또는 URL도 함께 적을 수 있습니다.",noPublications:"등록된 논문이나 연구성과가 없습니다.",savedPrograms:"저장한 R&D 공고",savedProgramsHelp:"관심 사업 저장 버튼으로 추가한 공고입니다.",noSavedPrograms:"저장한 공고가 없습니다."},
+  en:{publications:"Publications & research outputs",publicationsPlaceholder:"Enter one publication per line. You may include a DOI or URL.",noPublications:"No publications or research outputs have been added.",savedPrograms:"Saved R&D programs",savedProgramsHelp:"Programs added with the Save program button.",noSavedPrograms:"No saved programs."},
+  zh:{publications:"论文与研究成果",publicationsPlaceholder:"每行输入一项论文，可同时填写 DOI 或 URL。",noPublications:"尚未添加论文或研究成果。",savedPrograms:"已收藏的 R&D 公告",savedProgramsHelp:"通过收藏项目按钮添加的公告。",noSavedPrograms:"没有收藏的公告。"},
+  ja:{publications:"論文・研究成果",publicationsPlaceholder:"論文を1行に1件入力してください。DOIやURLも記載できます。",noPublications:"登録された論文・研究成果はありません。",savedPrograms:"保存したR&D公募",savedProgramsHelp:"関心事業を保存ボタンで追加した公募です。",noSavedPrograms:"保存した公募はありません。"},
+  vi:{publications:"Công bố và kết quả nghiên cứu",publicationsPlaceholder:"Nhập mỗi công bố trên một dòng; có thể kèm DOI hoặc URL.",noPublications:"Chưa có công bố hoặc kết quả nghiên cứu.",savedPrograms:"Chương trình R&D đã lưu",savedProgramsHelp:"Các chương trình được thêm bằng nút Lưu chương trình.",noSavedPrograms:"Chưa lưu chương trình nào."},
+};
+
+const activityMessages: Record<Locale, Record<string, string>> = {
+  ko:{researchActivity:"연구 네트워크 활동",researchActivityHelp:"직접 등록하거나 요청한 실제 활동입니다.",meetingRequestLabel:"미팅 요청",fundingProjectLabel:"펀딩 프로젝트",noResearchActivity:"등록된 네트워크 활동이 없습니다."},
+  en:{researchActivity:"Research network activity",researchActivityHelp:"Projects and requests you actually created.",meetingRequestLabel:"Meeting request",fundingProjectLabel:"Funding project",noResearchActivity:"No network activity yet."},
+  zh:{researchActivity:"研究网络活动",researchActivityHelp:"您实际登记或请求的活动。",meetingRequestLabel:"会议请求",fundingProjectLabel:"众筹项目",noResearchActivity:"尚无网络活动。"},
+  ja:{researchActivity:"研究ネットワーク活動",researchActivityHelp:"実際に登録・依頼した活動です。",meetingRequestLabel:"ミーティング依頼",fundingProjectLabel:"ファンディングプロジェクト",noResearchActivity:"ネットワーク活動はまだありません。"},
+  vi:{researchActivity:"Hoạt động mạng lưới nghiên cứu",researchActivityHelp:"Các dự án và yêu cầu bạn đã thực sự tạo.",meetingRequestLabel:"Yêu cầu họp",fundingProjectLabel:"Dự án gọi vốn",noResearchActivity:"Chưa có hoạt động mạng lưới."},
+};
+
 type LocaleContextValue = { locale: Locale; country: string; terminologyPreference: TerminologyPreference; setCountry: (country: string) => void; setLocale: (locale: Locale) => void; setTerminologyPreference: (value: TerminologyPreference) => void; t: (key: string) => string };
 const LocaleContext = createContext<LocaleContextValue | null>(null);
 
@@ -66,7 +82,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   const setLocale = (value: Locale) => { setLocaleState(value); localStorage.setItem("labbridge-locale", value); };
   const setCountry = (value: string) => { setCountryState(value); localStorage.setItem("labbridge-country", value); setLocale(countryOptions.find((item) => item.code === value)?.locale || "en"); };
   const setTerminologyPreference = (value: TerminologyPreference) => { setTerminologyState(value); localStorage.setItem("labbridge-terminology", value); };
-  const context = useMemo(() => ({ locale, country, terminologyPreference, setCountry, setLocale, setTerminologyPreference, t: (key: string) => accessibilityMessages[locale][key] || terminologyMessages[locale][key] || additionalMessages[locale][key] || messages[locale][key] || accessibilityMessages.ko[key] || terminologyMessages.ko[key] || additionalMessages.ko[key] || messages.ko[key] || key }), [locale, country, terminologyPreference]);
+  const context = useMemo(() => ({ locale, country, terminologyPreference, setCountry, setLocale, setTerminologyPreference, t: (key: string) => activityMessages[locale][key] || completionMessages[locale][key] || accessibilityMessages[locale][key] || terminologyMessages[locale][key] || additionalMessages[locale][key] || messages[locale][key] || activityMessages.ko[key] || completionMessages.ko[key] || accessibilityMessages.ko[key] || terminologyMessages.ko[key] || additionalMessages.ko[key] || messages.ko[key] || key }), [locale, country, terminologyPreference]);
   return <LocaleContext.Provider value={context}>{children}</LocaleContext.Provider>;
 }
 

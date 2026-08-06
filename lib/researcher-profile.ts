@@ -1,4 +1,4 @@
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { arrayRemove, arrayUnion, doc, getDoc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 export type ResearcherProfile = {
@@ -8,6 +8,10 @@ export type ResearcherProfile = {
   specialty: string;
   careerStage: string;
   interests: string;
+  publications: string[];
+  savedProgramIds: string[];
+  fundingProjects?: Array<{ id:string; title:string; amount:number; description:string; createdAt:string }>;
+  meetingRequests?: Array<{ id:string; researcher:string; createdAt:string }>;
   orcid: string;
   email: string;
   country: string;
@@ -21,5 +25,19 @@ export async function saveResearcherProfile(uid: string, profile: ResearcherProf
 
 export async function loadResearcherProfile(uid: string) {
   const snapshot = await getDoc(doc(db, "users", uid));
-  return snapshot.exists() ? snapshot.data() as ResearcherProfile : null;
+  if (!snapshot.exists()) return null;
+  const data = snapshot.data() as Partial<ResearcherProfile>;
+  return { ...data, publications: data.publications || [], savedProgramIds: data.savedProgramIds || [] } as ResearcherProfile;
+}
+
+export async function setProgramSaved(uid: string, programId: string, saved: boolean) {
+  await updateDoc(doc(db, "users", uid), { savedProgramIds: saved ? arrayUnion(programId) : arrayRemove(programId), updatedAt: serverTimestamp() });
+}
+
+export async function addFundingProject(uid: string, project: { id:string; title:string; amount:number; description:string; createdAt:string }) {
+  await updateDoc(doc(db, "users", uid), { fundingProjects: arrayUnion(project), updatedAt: serverTimestamp() });
+}
+
+export async function addMeetingRequest(uid: string, request: { id:string; researcher:string; createdAt:string }) {
+  await updateDoc(doc(db, "users", uid), { meetingRequests: arrayUnion(request), updatedAt: serverTimestamp() });
 }

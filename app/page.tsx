@@ -5,6 +5,7 @@ import { SiteHeader } from "@/components/site-header";
 import { StatusPill } from "@/components/status-pill";
 import { Locale, useLocale } from "@/components/locale-provider";
 import { programs } from "@/lib/programs";
+import { useProgramTranslations } from "@/components/use-program-translations";
 
 const homeCopy: Record<Locale, Record<string, string | string[]>> = {
   ko: { recommend:"맞춤 추천",hero:"연구자를 위한 R&D 사업을 확인하세요.",heroText:"연구 분야와 경력에 맞는 공고를 한곳에서 비교합니다.",network:"연구 네트워크",networkHero:"함께 연구할 동료와 기관을 만나보세요.",networkText:"대전의 연구자·기관과 실질적인 협업을 시작합니다.",notices:"사업 공고문",viewAll:"전체 보기",noticeItems:["2026년도 국제공동연구 신규과제 공모","외국인 연구자 정착지원 프로그램 안내","대덕특구 기술사업화 지원사업 모집"],find:"사업 찾기",findSub:"통합 공고 검색",write:"계획서 작성",writeSub:"AI 작성 도우미",meeting:"연구자 미팅",meetingSub:"협업 파트너 찾기",manage:"내 연구 관리",manageSub:"성과와 지원 현황",footer:"외국인 연구자를 위한 연구 성장 플랫폼" },
@@ -18,6 +19,7 @@ export default function Home() {
   const { locale } = useLocale();
   const ui = homeCopy[locale];
   const notices = programs.slice(0, 3);
+  const translations = useProgramTranslations(notices, locale);
   return <main className="site-page">
     <SiteHeader />
     <section className="home-grid">
@@ -25,7 +27,7 @@ export default function Home() {
         <Link className="hero-card hero-card-primary" href="/rd"><div><StatusPill tone="soft">{ui.recommend as string}</StatusPill><h1>{ui.hero as string}</h1><p>{ui.heroText as string}</p></div><span className="card-arrow">↗</span></Link>
         <Link className="hero-card hero-card-secondary" href="/network"><div><StatusPill tone="line">{ui.network as string}</StatusPill><h2>{ui.networkHero as string}</h2><p>{ui.networkText as string}</p></div><span className="card-arrow">↗</span></Link>
       </div>
-      <aside className="notice-card"><div className="card-heading"><div><span>UPDATE</span><h2>{ui.notices as string}</h2></div><Link href="/rd">{ui.viewAll as string} →</Link></div><div className="notice-list">{notices.map((notice, index) => <Link href={`/rd/${notice.id}`} key={notice.id}><span>0{index + 1}</span><strong>{notice.title}</strong><small>{notice.posted}</small></Link>)}</div></aside>
+      <aside className="notice-card"><div className="card-heading"><div><span>UPDATE</span><h2>{ui.notices as string}</h2></div><Link href="/rd">{ui.viewAll as string} →</Link></div><div className="notice-list">{notices.map((notice, index) => <Link href={`/rd/${notice.id}`} key={notice.id}><span>0{index + 1}</span><strong>{translations[notice.id]?.title || notice.title}</strong><small>{notice.posted}</small></Link>)}</div></aside>
       <div className="quick-grid">
         <Link href="/rd"><span>01</span><strong>{ui.find as string}</strong><small>{ui.findSub as string}</small></Link>
         <Link href="/proposal"><span>02</span><strong>{ui.write as string}</strong><small>{ui.writeSub as string}</small></Link>

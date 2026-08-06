@@ -99,6 +99,8 @@ export function AuthShell({ mode }: { mode: "login" | "register" }) {
           specialty: String(formData.get("specialty") ?? "").trim(),
           careerStage: String(formData.get("careerStage") ?? "").trim(),
           interests: String(formData.get("interests") ?? "").trim(),
+          publications: String(formData.get("publications") ?? "").split(/\r?\n/).map((item) => item.trim()).filter(Boolean),
+          savedProgramIds: [],
           orcid: String(formData.get("orcid") ?? "").trim(),
           country,
           locale,
@@ -141,6 +143,7 @@ export function AuthShell({ mode }: { mode: "login" | "register" }) {
                 <label>{t("career")}<SearchableSelect name="careerStage" options={careerStageOptions} placeholder={t("career")} required /></label>
                 <label>ORCID <span>({optionLabels.optional})</span><input name="orcid" type="text" placeholder="0000-0000-0000-0000" pattern="[0-9Xx-]{19}" /></label>
                 <label className="profile-wide">{t("interests")}<textarea name="interests" required maxLength={500} /></label>
+                <label className="profile-wide">{t("publications")} <span>({optionLabels.optional})</span><textarea name="publications" placeholder={t("publicationsPlaceholder")} maxLength={4000} /></label>
                 <label className="profile-wide">{t("terminology")}<select value={terminologyPreference} onChange={(event) => setTerminologyPreference(event.target.value as TerminologyPreference)}><option value="original_with_explanation">{optionLabels.terms[0]}</option><option value="translated_with_original">{optionLabels.terms[1]}</option><option value="original_only">{optionLabels.terms[2]}</option></select></label>
               </div>}
               <label>{t("email")}<input name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="researcher@example.com" autoComplete="email" required /></label>
@@ -156,8 +159,6 @@ export function AuthShell({ mode }: { mode: "login" | "register" }) {
               </button>
             </form>
 
-            <div className="auth-divider"><span>{t("or")}</span></div>
-            <button className="orcid-button" type="button" disabled><b>iD</b> {t("continueOrcid")}</button>
             <p className="auth-switch">{isLogin ? t("newUser") : optionLabels.account}{" "}<Link href={isLogin ? "/register" : "/login"}>{isLogin ? t("submitRegister") : optionLabels.accountAction}</Link></p>
           </section>
 

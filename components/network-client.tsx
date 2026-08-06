@@ -1,8 +1,10 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { StatusPill } from "./status-pill";
 import { Locale, useLocale } from "./locale-provider";
+import { auth } from "@/lib/firebase";
+import { addFundingProject, addMeetingRequest, loadResearcherProfile } from "@/lib/researcher-profile";
 
 type Copy = Record<string, string>;
 
@@ -29,9 +31,10 @@ export function NetworkClient() {
   const [modalOpen, setModalOpen] = useState(false);
   const [requested, setRequested] = useState<string[]>([]);
   const [notice, setNotice] = useState("");
+  useEffect(() => { const user=auth.currentUser;if(user)void loadResearcherProfile(user.uid).then((profile) => setRequested(profile?.meetingRequests?.map((item) => item.researcher) || [])); }, []);
 
-  function registerProject(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setModalOpen(false); setNotice(ui.projectSaved); }
-  function requestMeeting(name: string) { setRequested((current) => [...current, name]); setNotice(locale === "ko" || locale === "ja" || locale === "zh" ? `${name}${ui.meetingSent}` : `${name}${ui.meetingSent}`); }
+  async function registerProject(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const user=auth.currentUser;if(!user)return;const data=new FormData(event.currentTarget);await addFundingProject(user.uid,{id:crypto.randomUUID(),title:String(data.get("title")||""),amount:Number(data.get("amount")||0),description:String(data.get("description")||""),createdAt:new Date().toISOString()});setModalOpen(false);setNotice(ui.projectSaved); }
+  async function requestMeeting(name: string) { const user=auth.currentUser;if(!user)return;await addMeetingRequest(user.uid,{id:crypto.randomUUID(),researcher:name,createdAt:new Date().toISOString()});setRequested((current) => [...current, name]); setNotice(`${name}${ui.meetingSent}`); }
 
   return <section className="network-page">
     <div className="page-title"><span className="section-label">RESEARCH NETWORK</span><h1>{t("networkTitle")}</h1><p>{ui.intro}</p></div>
@@ -40,8 +43,8 @@ export function NetworkClient() {
       <article className="funding-feature"><div><StatusPill tone="soft">{ui.active}</StatusPill><h3>{ui.fundingTitle}</h3><p>{ui.fundingText}</p></div><div className="funding-progress"><b>72%</b><span><i /></span><small>{ui.goal} 30,000,000 KRW · {ui.days}</small></div></article>
     </div>
     <div className="network-section"><div className="card-heading"><div><h2>{ui.matching}</h2><p>{ui.matchingIntro}</p></div><button onClick={() => setShowAll((value) => !value)}>{showAll ? ui.recommended : ui.viewAll}</button></div>
-      <div className="researcher-list">{researchers.slice(0, showAll ? researchers.length : 3).map((researcher, index) => <article key={researcher.name}><span className="avatar">{String(index + 1).padStart(2, "0")}</span><div><StatusPill tone="line">{ui[researcher.tag]}</StatusPill><h3>{researcher.name}</h3><p>{researcher.org[locale]} · {researcher.topic[locale]}</p></div><button disabled={requested.includes(researcher.name)} onClick={() => requestMeeting(researcher.name)}>{requested.includes(researcher.name) ? ui.requested : `${ui.request} →`}</button></article>)}</div>
+      <div className="researcher-list">{researchers.slice(0, showAll ? researchers.length : 3).map((researcher, index) => <article key={researcher.name}><span className="avatar">{String(index + 1).padStart(2, "0")}</span><div><StatusPill tone="line">{ui[researcher.tag]}</StatusPill><h3>{researcher.name}</h3><p>{researcher.org[locale]} · {researcher.topic[locale]}</p></div><button disabled={requested.includes(researcher.name)} onClick={() => void requestMeeting(researcher.name)}>{requested.includes(researcher.name) ? ui.requested : `${ui.request} →`}</button></article>)}</div>
     </div>
-    {modalOpen && <div className="modal-backdrop" role="presentation"><section className="form-modal" role="dialog" aria-modal="true" aria-labelledby="project-modal-title"><button className="modal-close" aria-label={ui.close} onClick={() => setModalOpen(false)}>×</button><span className="section-label">NEW PROJECT</span><h2 id="project-modal-title">{ui.newProject}</h2><form onSubmit={registerProject}><label>{ui.projectName}<input required placeholder={ui.projectNamePlaceholder} /></label><label>{ui.amount}<input required type="number" min="100000" placeholder="30000000" /></label><label>{ui.description}<textarea required placeholder={ui.descriptionPlaceholder} /></label><button type="submit">{ui.submit} →</button></form></section></div>}
+    {modalOpen && <div className="modal-backdrop" role="presentation"><section className="form-modal" role="dialog" aria-modal="true" aria-labelledby="project-modal-title"><button className="modal-close" aria-label={ui.close} onClick={() => setModalOpen(false)}>×</button><span className="section-label">NEW PROJECT</span><h2 id="project-modal-title">{ui.newProject}</h2><form onSubmit={(event) => void registerProject(event)}><label>{ui.projectName}<input name="title" required placeholder={ui.projectNamePlaceholder} /></label><label>{ui.amount}<input name="amount" required type="number" min="100000" placeholder="30000000" /></label><label>{ui.description}<textarea name="description" required placeholder={ui.descriptionPlaceholder} /></label><button type="submit">{ui.submit} →</button></form></section></div>}
   </section>;
 }
