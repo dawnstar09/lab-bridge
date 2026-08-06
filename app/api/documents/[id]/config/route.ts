@@ -42,6 +42,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       mode: "edit",
       user: { id: "labbridge-user", name: "Lab-BridGE 연구자" },
       customization: { autosave: true, compactHeader: false, forcesave: true },
+      plugins: {
+        autostart: ["asc.{A6843506-4E9A-4B1C-8D53-4E4E44C315E2}"],
+        pluginsData: [`${origin}/api/documents/${id}/plugin-config`],
+      },
     },
   };
   return NextResponse.json({ ...config, token: signOnlyOfficeConfig(config, secret) });

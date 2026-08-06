@@ -1,5 +1,6 @@
 (function () {
   var polling = false;
+  var settings = window.LABBRIDGE_PLUGIN || {};
 
   function runCommand(command) {
     window.Asc.plugin.executeMethod("SearchNext", [{
@@ -26,7 +27,8 @@
     if (polling) return;
     polling = true;
     try {
-      var response = await fetch("http://localhost:3000/api/editor-command", { cache: "no-store" });
+      if (!settings.apiBase || !settings.documentId) return;
+      var response = await fetch(settings.apiBase + "/api/editor-command?documentId=" + encodeURIComponent(settings.documentId), { cache: "no-store" });
       if (response.status === 200) runCommand(await response.json());
     } catch (_) {
       // The editor page can be temporarily unavailable during navigation.
