@@ -44,7 +44,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       customization: { autosave: true, compactHeader: false, forcesave: true },
       plugins: {
         autostart: ["asc.{A6843506-4E9A-4B1C-8D53-4E4E44C315E2}"],
-        pluginsData: [`${origin}/api/documents/${id}/plugin-config`],
+        pluginsData: [`${origin}/api/documents/${id}/config.json`],
       },
     },
   };

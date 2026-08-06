@@ -29,24 +29,26 @@ export default function Home() {
   const ui = copy[locale];
   const [profile, setProfile] = useState<ResearcherProfile | null>(null);
   const [signedIn, setSignedIn] = useState(false);
+  const [today, setToday] = useState<Date | null>(null);
   const [month, setMonth] = useState(() => { const now=new Date(); return new Date(now.getFullYear(),now.getMonth(),1); });
   const translations = useProgramTranslations(programs, locale);
-  useEffect(() => onAuthStateChanged(auth, async (user) => { setSignedIn(Boolean(user)); setProfile(user ? await loadResearcherProfile(user.uid) : null); }), []);
+  useEffect(() => {
+    setToday(new Date());
+    return onAuthStateChanged(auth, async (user) => { setSignedIn(Boolean(user)); setProfile(user ? await loadResearcherProfile(user.uid) : null); });
+  }, []);
 
   const recommendations = useMemo(() => programs.map((program) => ({ program, score:profile ? matchProgram(program,profile).score : 0 })).sort((a,b) => profile ? b.score-a.score : b.program.posted.localeCompare(a.program.posted)).slice(0,4), [profile]);
   const eventDays = useMemo(() => new Set(programs.map((item) => parseDate(item.deadline)).filter((date):date is Date => Boolean(date) && date!.getFullYear()===month.getFullYear() && date!.getMonth()===month.getMonth()).map((date) => date.getDate())), [month]);
   const daysInMonth = new Date(month.getFullYear(),month.getMonth()+1,0).getDate();
   const calendarCells = [...Array(month.getDay()).fill(null), ...Array.from({length:daysInMonth},(_,index)=>index+1)];
-  const today = new Date();
-
   return <main className="site-page home-dashboard-page">
     <SiteHeader />
     <section className="home-dashboard">
-      <header className="home-summary-head"><div><span className="section-label">{ui.eyebrow}</span><h1>{ui.hello}</h1><p>{ui.intro}</p></div><time>{new Intl.DateTimeFormat(locale,{year:"numeric",month:"long",day:"numeric",weekday:"long"}).format(today)}</time></header>
+      <header className="home-summary-head"><div><span className="section-label">{ui.eyebrow}</span><h1>{ui.hello}</h1><p>{ui.intro}</p></div><time>{today ? new Intl.DateTimeFormat(locale,{year:"numeric",month:"long",day:"numeric",weekday:"long"}).format(today) : ""}</time></header>
       <div className="summary-strip"><div><span>01</span><b>{profile?.savedProgramIds?.length || 0}</b><small>{ui.saved}</small></div><div><span>02</span><b>{profile?.meetingRequests?.length || 0}</b><small>{ui.meetings}</small></div><div><span>03</span><b>{profile?.fundingProjects?.length || 0}</b><small>{ui.projects}</small></div>{!signedIn && <Link href="/login"><span>{ui.signIn}</span><strong>{ui.signInAction} →</strong></Link>}</div>
       <div className="home-content-grid">
         <section className="home-program-panel"><div className="card-heading"><div><span className="section-label">FOR YOU</span><h2>{ui.recommend}</h2><p>{ui.recommendHelp}</p></div><Link href="/rd">{ui.viewAll} →</Link></div><div className="home-program-list">{recommendations.map(({program,score},index)=><Link href={`/rd/${program.id}`} key={program.id}><span>{String(index+1).padStart(2,"0")}</span><div><strong>{translations[program.id]?.title || program.title}</strong><small>{ui.deadline} · {program.deadline}</small></div>{profile && <b>{score}% <i>{ui.fit}</i></b>}</Link>)}</div></section>
-        <section className="home-calendar-panel"><div className="card-heading"><div><span className="section-label">SCHEDULE</span><h2>{ui.calendar}</h2><p>{ui.calendarHelp}</p></div></div><div className="calendar-nav"><button onClick={()=>setMonth(new Date(month.getFullYear(),month.getMonth()-1,1))} aria-label="Previous month">←</button><b>{new Intl.DateTimeFormat(locale,{year:"numeric",month:"long"}).format(month)}</b><button onClick={()=>setMonth(new Date(month.getFullYear(),month.getMonth()+1,1))} aria-label="Next month">→</button></div><div className="calendar-grid">{[ui.sun,ui.mon,ui.tue,ui.wed,ui.thu,ui.fri,ui.sat].map((day)=><strong key={day}>{day}</strong>)}{calendarCells.map((day,index)=><span className={`${day && eventDays.has(day)?"has-event":""} ${day===today.getDate()&&month.getMonth()===today.getMonth()&&month.getFullYear()===today.getFullYear()?"today":""}`} key={`${day}-${index}`}>{day}</span>)}</div><div className="calendar-legend"><i />{ui.deadline}</div></section>
+        <section className="home-calendar-panel"><div className="card-heading"><div><span className="section-label">SCHEDULE</span><h2>{ui.calendar}</h2><p>{ui.calendarHelp}</p></div></div><div className="calendar-nav"><button onClick={()=>setMonth(new Date(month.getFullYear(),month.getMonth()-1,1))} aria-label="Previous month">←</button><b>{new Intl.DateTimeFormat(locale,{year:"numeric",month:"long"}).format(month)}</b><button onClick={()=>setMonth(new Date(month.getFullYear(),month.getMonth()+1,1))} aria-label="Next month">→</button></div><div className="calendar-grid">{[ui.sun,ui.mon,ui.tue,ui.wed,ui.thu,ui.fri,ui.sat].map((day)=><strong key={day}>{day}</strong>)}{calendarCells.map((day,index)=><span className={`${day && eventDays.has(day)?"has-event":""} ${today && day===today.getDate()&&month.getMonth()===today.getMonth()&&month.getFullYear()===today.getFullYear()?"today":""}`} key={`${day}-${index}`}>{day}</span>)}</div><div className="calendar-legend"><i />{ui.deadline}</div></section>
       </div>
       <section className="home-quick-panel"><div className="card-heading"><div><span className="section-label">SHORTCUTS</span><h2>{ui.quick}</h2></div></div><div className="home-quick-grid"><Link href="/rd"><span>01</span><b>{ui.programs}</b><small>{ui.programsSub}</small><i>→</i></Link><Link href="/proposal"><span>02</span><b>{ui.proposal}</b><small>{ui.proposalSub}</small><i>→</i></Link><Link href="/network"><span>03</span><b>{ui.network}</b><small>{ui.networkSub}</small><i>→</i></Link><Link href="/dashboard"><span>04</span><b>{ui.mypage}</b><small>{ui.mypageSub}</small><i>→</i></Link></div></section>
     </section>
