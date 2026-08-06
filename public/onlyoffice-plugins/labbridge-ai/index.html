@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Lab-BridGE AI 검토</title>
+  <script src="../v1/plugins.js"></script>
+  <script defer src="plugin.js?v=1.0.7"></script>
+  <style>
+    *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#3f3f3f!important;color:#fff!important}body{padding:18px;font-family:Arial,sans-serif}h1{font-size:18px;margin:0 0 7px;color:#fff!important;-webkit-text-fill-color:#fff!important}p{font-size:12px;line-height:1.55;color:#fff!important;-webkit-text-fill-color:#fff!important}textarea{width:100%;height:76px;border:1px solid #aaa!important;border-radius:6px;padding:9px;resize:none;font:12px Arial;background:#fff!important;color:#111!important;-webkit-text-fill-color:#111!important}.selection{height:166px;margin:16px 0;padding:12px!important;line-height:1.6!important;overflow:auto!important;cursor:text!important;opacity:1!important}.selection::selection{background:#b8d0ff!important;color:#111!important;-webkit-text-fill-color:#111!important}.selection.empty{color:#666!important;-webkit-text-fill-color:#666!important}textarea::placeholder{color:#777!important;-webkit-text-fill-color:#777!important;opacity:1}button{width:100%;height:40px;margin-top:8px;border:0;border-radius:6px;background:#111!important;color:#fff!important;-webkit-text-fill-color:#fff!important;font-size:12px;cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}.status{height:82px;margin-top:14px;padding:14px 0 0!important;border:0!important;border-top:1px solid #aaa!important;border-radius:0!important;background:#3f3f3f!important;color:#fff!important;-webkit-text-fill-color:#fff!important;font-size:11px!important;line-height:1.6!important;overflow:auto!important;opacity:1!important}.status.error{color:#ffb3b3!important;-webkit-text-fill-color:#ffb3b3!important}.hint{font-size:10px;color:#fff!important;-webkit-text-fill-color:#fff!important;margin-top:9px}
+  </style>
+</head>
+<body>
+  <h1 style="color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;">Lab-BridGE AI 검토</h1>
+  <p style="color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;">문서에서 검토할 문장을 드래그한 뒤 실행하세요.</p>
+  <textarea id="selection" class="selection empty" readonly aria-label="선택한 문장" style="background:#fff!important;color:#111!important;-webkit-text-fill-color:#111!important;opacity:1!important;">선택한 문장이 없습니다.</textarea>
+  <textarea id="question" placeholder="예: 이 문장의 연구 목표가 구체적인지 검토해 주세요." style="background:#fff!important;color:#111!important;-webkit-text-fill-color:#111!important;opacity:1!important;"></textarea>
+  <button id="review" type="button" disabled>선택 문장 검토하기</button>
+  <textarea id="status" class="status" readonly aria-label="AI 검토 상태" style="background:#3f3f3f!important;color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;">문장을 선택하면 AI가 전체 문서 맥락과 함께 분석합니다.</textarea>
+  <div class="hint" style="color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;">선택 문장은 흰색 카드 안에 검은색으로 표시됩니다.</div>
+</body>
+</html>

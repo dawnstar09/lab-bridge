@@ -1,0 +1,18 @@
+{
+  "name": "Lab-BridGE AI 검토",
+  "guid": "asc.{6F3C2C96-5A8F-4DF0-B18B-5A58A9736C41}",
+  "version": "1.0.7",
+  "variations": [{
+    "description": "선택한 연구계획서 문장을 AI로 검토하고 댓글을 추가합니다.",
+    "url": "index.html?v=1.0.7",
+    "icons": ["icon.svg"],
+    "isViewer": false,
+    "EditorsSupport": ["word"],
+    "isVisual": true,
+    "isModal": false,
+    "isInsideMode": true,
+    "type": "panel",
+    "initDataType": "none",
+    "buttons": []
+  }]
+}
