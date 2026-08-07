@@ -13,6 +13,26 @@ export type ResearcherMatch = KaistResearcher & {
   matchedKeywords: string[];
 };
 
+type LabTaxonomy = { specialties: string[]; fields: string[] };
+
+const labTaxonomy: Record<string, LabTaxonomy> = {
+  "kaist-smesh": { specialties:["chemical-engineering","biotechnology","biology"], fields:["engineering-technology","medical-health","natural-sciences"] },
+  "kaist-acoustic-microfluidics": { specialties:["mechanical","biotechnology","basic-medicine"], fields:["engineering-technology","medical-health"] },
+  "kaist-computational-materials": { specialties:["physics","materials","data-hpc"], fields:["natural-sciences","engineering-technology"] },
+  "kaist-catalyst-design": { specialties:["chemistry","chemical-engineering","materials"], fields:["natural-sciences","engineering-technology"] },
+  "kaist-nanophotonics": { specialties:["physics","nano","quantum"], fields:["natural-sciences","engineering-technology"] },
+  "kaist-biodeengineering": { specialties:["biology","biotechnology","chemical-engineering"], fields:["natural-sciences","medical-health","engineering-technology"] },
+  "kaist-thermal-superconductor": { specialties:["physics","materials","energy","mechanical"], fields:["natural-sciences","engineering-technology"] },
+  "kaist-sustainable-chemistry": { specialties:["chemistry","chemical-engineering","materials"], fields:["natural-sciences","engineering-technology"] },
+  "kaist-semiconductor-packaging": { specialties:["semiconductor","electrical-information","materials"], fields:["engineering-technology"] },
+  "kaist-pde": { specialties:["mathematics","data-hpc"], fields:["natural-sciences"] },
+  "kaist-extreme-materials": { specialties:["aerospace","materials","mechanical"], fields:["engineering-technology"] },
+  "kaist-vic-agi": { specialties:["ai","computer-science","robotics","electrical-information"], fields:["engineering-technology"] },
+  "kaist-ai-semiconductor": { specialties:["ai","semiconductor","electrical-information","computer-science"], fields:["engineering-technology"] },
+  "kaist-molecular-spectroscopy": { specialties:["chemistry","physics","chemical-engineering"], fields:["natural-sciences","engineering-technology"] },
+  "kaist-advanced-data": { specialties:["data-hpc","computer-science","ai"], fields:["engineering-technology","natural-sciences"] },
+};
+
 const conceptAliases: Record<string, string[]> = {
   ai: [
     "ai",
@@ -247,6 +267,33 @@ function weightedSimilarity(profile: ResearcherProfile, researcher: KaistResearc
   ) / totalWeight;
 }
 
+function taxonomyScore(profile: ResearcherProfile, researcher: KaistResearcher) {
+  const taxonomy = labTaxonomy[researcher.id];
+  if (!taxonomy) return { score: 0, weight: 0 };
+  let score = 0;
+  let weight = 0;
+
+  if (profile.specialty) {
+    weight += 0.55;
+    const specialtyIndex = taxonomy.specialties.indexOf(profile.specialty);
+    if (specialtyIndex === 0) score += 0.55;
+    else if (specialtyIndex > 0) score += Math.max(0.28, 0.46 - specialtyIndex * 0.06);
+  }
+  if (profile.researchField) {
+    weight += 0.15;
+    if (taxonomy.fields.includes(profile.researchField)) score += 0.15;
+  }
+
+  return { score, weight };
+}
+
+function hybridSimilarity(profile: ResearcherProfile, researcher: KaistResearcher) {
+  const taxonomy = taxonomyScore(profile, researcher);
+  const hasContext = Boolean(profile.interests?.trim() || textValue(profile.publications).trim());
+  if (!taxonomy.weight && !hasContext) return 0;
+  return taxonomy.score + (hasContext ? weightedSimilarity(profile, researcher) * 0.3 : 0);
+}
+
 function matchedKeywords(profileText: string, researcher: KaistResearcher) {
   const profileConcepts = new Set(detectedConcepts(profileText));
   return researcher.keywords
@@ -274,7 +321,7 @@ export function matchKaistResearchers(profile: ResearcherProfile | null | undefi
   return kaistResearchers
     .map((researcher) => ({
       ...researcher,
-      score: Math.min(100, Math.round(weightedSimilarity(resolvedProfile, researcher) * 100)),
+      score: Math.min(100, Math.round(hybridSimilarity(resolvedProfile, researcher) * 100)),
       matchedKeywords: matchedKeywords(profileText, researcher),
     }))
     .sort((left, right) => right.score - left.score || left.professor.localeCompare(right.professor));
